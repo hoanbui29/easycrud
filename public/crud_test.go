@@ -41,3 +41,24 @@ func TestCreate(t *testing.T) {
 
 	t.Logf("created data with id: %v", id)
 }
+
+func TestDetail(t *testing.T) {
+	db, err := sql.Open("postgres", os.Getenv("POSTGRES_LOCAL_TEST"))
+
+	if err != nil {
+		t.Fatal("error connecting to database")
+	}
+
+	crud := EasyCRUD[TestData, int]{
+		db: db,
+	}
+
+	value, err := crud.Detail(2)
+
+	if err != nil {
+		t.Errorf("error getting data: %v", err)
+		return
+	}
+
+	t.Logf("data: %v", value)
+}

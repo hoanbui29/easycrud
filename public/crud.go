@@ -17,7 +17,8 @@ type fieldModel struct {
 }
 
 type EasyCRUDModel[TEntity any, TKey any] interface {
-	Create() (TKey, error)
+	Create(input TEntity) (TKey, error)
+	Detail(key TKey) (TEntity, error)
 }
 
 type EasyCRUD[TEntity any, TKey any] struct {
@@ -100,7 +101,12 @@ func (e *EasyCRUD[TEntity, TKey]) Create(input TEntity) (TKey, error) {
 		columns = append(columns, field.columnName)
 		quotedColumns = append(quotedColumns, fmt.Sprintf(`"%s"`, field.columnName))
 		placeholders = append(placeholders, fmt.Sprintf(`$%d`, len(values)+1))
-		values = append(values, reflect.ValueOf(input).FieldByName(field.name).Interface())
+		value, err := e.getValueByFieldName(input, field.name)
+
+		if err != nil {
+			return defaultKey, err
+		}
+		values = append(values, value)
 	}
 
 	stmt := fmt.Sprintf(`INSERT INTO %s (%s)
@@ -113,4 +119,31 @@ func (e *EasyCRUD[TEntity, TKey]) Create(input TEntity) (TKey, error) {
 	}
 
 	return defaultKey, nil
+}
+
+func (e *EasyCRUD[TEntity, TKey]) Detail(key TKey) (TEntity, error) {
+	var defaultEntity TEntity
+	table, pkey, _, err := e.validateModel()
+
+	if err != nil {
+		return defaultEntity, err
+	}
+
+	row := e.db.QueryRow(fmt.Sprintf(`SELECT * FROM %s WHERE %s = $1`, table, pkey.columnName), key)
+
+	var entity TEntity
+
+	scanArgs, err := e.getFieldPointers(&entity)
+
+	if err != nil {
+		return defaultEntity, err
+	}
+
+	err = row.Scan(scanArgs...)
+
+	if err != nil {
+		return defaultEntity, err
+	}
+
+	return entity, nil
 }
