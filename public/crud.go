@@ -20,6 +20,7 @@ type EasyCRUDModel[TEntity any, TKey any] interface {
 	Create(input TEntity) (TKey, error)
 	Detail(key TKey) (TEntity, error)
 	Update(input TEntity) (bool, error)
+	Delete(key TKey) (bool, error)
 }
 
 type EasyCRUD[TEntity any, TKey any] struct {
@@ -187,4 +188,23 @@ func (e *EasyCRUD[TEntity, TKey]) Update(input TEntity) (bool, error) {
 	rowsAffected, err := result.RowsAffected()
 
 	return rowsAffected > 0, err
+}
+
+func (e *EasyCRUD[TEntity, TKey]) Delete(key TKey) (bool, error) {
+	table, pkey, _, err := e.validateModel()
+
+	if err != nil {
+		return false, err
+	}
+
+	result, err := e.db.Exec(fmt.Sprintf(`DELETE FROM %s WHERE %s = $1`, table, pkey.columnName), key)
+
+	if err != nil {
+		return false, err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+
+	return rowsAffected > 0, err
+
 }
