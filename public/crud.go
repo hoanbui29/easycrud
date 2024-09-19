@@ -19,6 +19,7 @@ type fieldModel struct {
 type EasyCRUDModel[TEntity any, TKey any] interface {
 	Create(input TEntity) (TKey, error)
 	Detail(key TKey) (TEntity, error)
+	Update(input TEntity) (bool, error)
 }
 
 type EasyCRUD[TEntity any, TKey any] struct {
@@ -133,7 +134,7 @@ func (e *EasyCRUD[TEntity, TKey]) Detail(key TKey) (TEntity, error) {
 
 	var entity TEntity
 
-	scanArgs, err := e.getFieldPointers(&entity)
+	scanArgs, err := e.getFieldPointers(&entity, false)
 
 	if err != nil {
 		return defaultEntity, err
@@ -146,4 +147,44 @@ func (e *EasyCRUD[TEntity, TKey]) Detail(key TKey) (TEntity, error) {
 	}
 
 	return entity, nil
+}
+
+func (e *EasyCRUD[TEntity, TKey]) Update(input TEntity) (bool, error) {
+	table, pkey, fields, err := e.validateModel()
+
+	if err != nil {
+		return false, err
+	}
+
+	var columns []string
+	var updateColumns []string
+	var values []interface{}
+
+	pkeyValue, err := e.getValueByFieldName(input, pkey.name)
+
+	if err != nil {
+		return false, err
+	}
+
+	for _, field := range fields {
+		columns = append(columns, field.columnName)
+		updateColumns = append(updateColumns, fmt.Sprintf(`"%s" = $%d`, field.columnName, len(values)+1))
+		value, err := e.getValueByFieldName(input, field.name)
+
+		if err != nil {
+			return false, err
+		}
+		values = append(values, value)
+	}
+
+	stmt := fmt.Sprintf(`UPDATE %s SET %s WHERE %s = $%d`, table, strings.Join(updateColumns, ","), pkey.columnName, len(values)+1)
+	result, err := e.db.Exec(stmt, append(values, pkeyValue)...)
+
+	if err != nil {
+		return false, err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+
+	return rowsAffected > 0, err
 }

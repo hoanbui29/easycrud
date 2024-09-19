@@ -62,3 +62,31 @@ func TestDetail(t *testing.T) {
 
 	t.Logf("data: %v", value)
 }
+
+func TestUpdate(t *testing.T) {
+	db, err := sql.Open("postgres", os.Getenv("POSTGRES_LOCAL_TEST"))
+
+	if err != nil {
+		t.Fatal("error connecting to database")
+	}
+
+	crud := EasyCRUD[TestData, int]{
+		db: db,
+	}
+
+	isSuccess, err := crud.Update(TestData{
+		ID:   3,
+		Name: "New name"})
+
+	if err != nil {
+		t.Errorf("error updating data: %v", err)
+		return
+	}
+
+	if !isSuccess {
+		t.Errorf("error updating data: not success")
+		return
+	}
+
+	t.Logf("data updated")
+}

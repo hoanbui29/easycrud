@@ -64,7 +64,7 @@ func (e EasyCRUD[TEntity, TKey]) getValueByFieldName(model TEntity, fieldName st
 	}
 }
 
-func (e EasyCRUD[TEntity, TKey]) getFieldPointers(model *TEntity) ([]interface{}, error) {
+func (e EasyCRUD[TEntity, TKey]) getFieldPointers(model *TEntity, ignoreKey bool) ([]interface{}, error) {
 	t := reflect.TypeOf(*model)
 	v := reflect.ValueOf(model)
 	numFields := t.NumField()
@@ -73,6 +73,10 @@ func (e EasyCRUD[TEntity, TKey]) getFieldPointers(model *TEntity) ([]interface{}
 	for i := 0; i < numFields; i++ {
 		fieldValue := v.Elem().Field(i)
 		tags := getStructTag(t.Field(i))
+
+		if ignoreKey && tags["pkey"] != "" {
+			continue
+		}
 
 		if isIgnore(tags) {
 			continue
